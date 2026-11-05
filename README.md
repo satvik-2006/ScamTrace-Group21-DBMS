@@ -17,6 +17,7 @@ From the repository root in PowerShell:
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+$env:SCAMTRACE_SECRET_KEY = python -c "import secrets; print(secrets.token_urlsafe(32))"
 $env:SCAMTRACE_SEED_DEMO="1"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
@@ -50,7 +51,13 @@ SCAMTRACE_SEED_DEMO=0
 COOKIE_SECURE=0   # local HTTP only; use 1 behind HTTPS
 ```
 
-Before signing in to a fresh MySQL database, create your own administrator. The command prompts for a password without echoing it:
+The application reads these settings from the process environment. For the API, either export the values in the current shell or pass the file explicitly with Uvicorn:
+
+```powershell
+python -m uvicorn app.main:app --env-file .env --host 127.0.0.1 --port 8000
+```
+
+Before signing in to a fresh MySQL database, create your own administrator. Export DATABASE_URL and SCAMTRACE_SECRET_KEY in the current shell first; the bootstrap command does not load .env by itself. It prompts for a password without echoing it:
 
 ```powershell
 python -m app.bootstrap_admin --email admin@example.invalid
@@ -76,9 +83,11 @@ Open [http://localhost:3000](http://localhost:3000). `frontend/.env.local.exampl
 
 MySQL InnoDB does not allow partitioned tables to use foreign keys. The core schema keeps all 22 relationships, so partitioning is demonstrated separately in `sql/07_partitioning_demo.sql`. The script creates an isolated `scamtrace_partition_lab` database and fills a partitioned audit-log table with synthetic rows. It does not change or copy data from `scamtrace`. Run it on MySQL 8.0 or later and check the `EXPLAIN PARTITIONS` output.
 
-The partitioned table uses `DATETIME` with `RANGE COLUMNS`; its primary key includes the partition column, as MySQL requires for unique keys on partitioned tables. The separate `sql/06_ddl_demonstration.sql` is also an isolated optional DDL lab.
+The partitioned table uses `DATETIME` with `RANGE COLUMNS`; its primary key includes the partition column, as MySQL requires for unique keys on partitioned tables. The separate `sql/06_ddl_demonstration.sql` is an isolated optional DDL lab demonstrating CREATE, ALTER and DROP only on disposable objects in its own lab schema.
 
 ## Schema and review findings
+
+The full submission draft is [docs/ScamTrace_DBMS_Project_Report.docx](docs/ScamTrace_DBMS_Project_Report.docx). It includes the project overview, schema mapping, SQL feature descriptions, safe demo screenshots, field-level dictionary, requirement crosswalk and current verification limits. The course code and faculty guide are blank for the team to fill in.
 
 See [docs/SCHEMA_AND_REVIEW_ANALYSIS.md](docs/SCHEMA_AND_REVIEW_ANALYSIS.md) for the table-by-table ERD mapping and comparison of both submitted PDFs. The ERD draws `USER` twice to reduce crossing lines; both boxes refer to the same `user` table. The later SQL snapshot adds `user.last_login`, retained as an implementation extension. The Review‑2 `ddl_test` table and attempted duplicate `chk_report_count` constraint are excluded; the canonical schema contains one `chk_report_count` and one `chk_risk_score` constraint.
 

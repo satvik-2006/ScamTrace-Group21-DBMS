@@ -14,3 +14,13 @@ CREATE TABLE IF NOT EXISTS ddl_demo_note (
 ALTER TABLE ddl_demo_note COMMENT='Isolated ScamTrace DDL exercise';
 
 SHOW CREATE TABLE ddl_demo_note;
+
+-- DROP example: this removes only a disposable table created in this DDL lab.
+-- Do not change the target to a core ScamTrace table.
+CREATE TABLE IF NOT EXISTS ddl_drop_demo (
+    demo_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    demo_value VARCHAR(100) NOT NULL,
+    PRIMARY KEY (demo_id)
+) ENGINE=InnoDB;
+
+DROP TABLE IF EXISTS ddl_drop_demo;
