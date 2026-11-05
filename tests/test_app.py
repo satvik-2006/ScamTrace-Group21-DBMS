@@ -180,4 +180,3 @@ def test_indicator_api_shows_only_verified_matches_and_requires_three_characters
             assert matches == [{'kind': expected_kind, 'value': value, 'verified_reports': 1}]
             assert all(item['value'] != pending_value for item in response.json()['items'])
             assert client.get('/api/v1/indicators', params={'q': 'xy'}).json()['items'] == []
-
