@@ -1,5 +1,6 @@
 """Integration tests against a disposable real SQLite relational database."""
 import os, re, tempfile
+import uuid
 from pathlib import Path
 from urllib.parse import quote
 
@@ -11,7 +12,8 @@ os.environ['SCAMTRACE_SECRET_KEY']='integration-tests-local-secret-at-least-32-c
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from app.main import app, SessionLocal
-from app.models import ScamReport, ModerationAction, AuditLog, ReportURL, RiskAnalysis
+from app.models import (ScamReport, ModerationAction, AuditLog, ReportURL, RiskAnalysis,
+    URL, PhoneNumber, UPI, EmailAddress, ReportPhone, ReportUPI, ReportEmail)
 
 
 def csrf(client,path='/login'):
@@ -131,3 +133,50 @@ def test_nextjs_json_api_contract():
             json={'action_type':'APPROVE','reason':'API moderation test'},
             headers={'X-CSRF-Token':staff_session['csrf']})
         assert moderated.status_code == 200 and moderated.json()['status'] == 'VERIFIED'
+
+
+def test_indicator_api_shows_only_verified_matches_and_requires_three_characters():
+    """Synthetic indicators exercise every supported kind and the public visibility boundary."""
+    cases = [
+        (URL, ReportURL, 'url_id', lambda token: f'https://lookup-{token}.invalid/check',
+         lambda value, token: URL(url=value, domain=f'lookup-{token}.invalid')),
+        (PhoneNumber, ReportPhone, 'phone_id', lambda token: f'+91987{token[:7]}',
+         lambda value, token: PhoneNumber(phone_number=value)),
+        (UPI, ReportUPI, 'upi_id', lambda token: f'lookup{token}@demo.invalid',
+         lambda value, token: UPI(vpa=value, provider='demo.invalid')),
+        (EmailAddress, ReportEmail, 'email_id', lambda token: f'lookup{token}@demo.invalid',
+         lambda value, token: EmailAddress(email_address=value, domain='demo.invalid')),
+    ]
+    with TestClient(app) as client:
+        for model, link_model, id_field, value_for, make_indicator in cases:
+            token = uuid.uuid4().hex[:12]
+            # Phone searches use numeric characters because the value itself contains no token.
+            query = token[:6] if model is not PhoneNumber else '987654'
+            value = value_for(query + token[:5] if model is PhoneNumber else token)
+            with SessionLocal() as db:
+                indicator = make_indicator(value, token)
+                pending_value = (f'https://pending-{token}.invalid/check' if model is URL else
+                    f'+91987{query}{token[:5]}' if model is PhoneNumber else
+                    f'pending{token}@demo.invalid')
+                pending_indicator = make_indicator(pending_value, token)
+                db.add(indicator); db.flush()
+                db.add(pending_indicator); db.flush()
+                indicator_id = getattr(indicator, id_field)
+                pending_indicator_id = getattr(pending_indicator, id_field)
+                verified = ScamReport(user_id=1, category_id=1, title=f'Synthetic verified {token}',
+                    description='Synthetic test fixture only.', source_type='Test', risk_score=10, status='VERIFIED')
+                pending = ScamReport(user_id=1, category_id=1, title=f'Synthetic pending {token}',
+                    description='Synthetic test fixture only.', source_type='Test', risk_score=10, status='PENDING')
+                db.add_all([verified, pending]); db.flush()
+                db.add_all([link_model(report_id=verified.report_id, **{id_field: indicator_id}),
+                            link_model(report_id=pending.report_id, **{id_field: indicator_id}),
+                            link_model(report_id=pending.report_id, **{id_field: pending_indicator_id})])
+                db.commit()
+
+            response = client.get('/api/v1/indicators', params={'q': query})
+            assert response.status_code == 200
+            matches = [item for item in response.json()['items'] if item['value'] == value]
+            expected_kind = {URL: 'URL', PhoneNumber: 'Phone', UPI: 'UPI', EmailAddress: 'Email'}[model]
+            assert matches == [{'kind': expected_kind, 'value': value, 'verified_reports': 1}]
+            assert all(item['value'] != pending_value for item in response.json()['items'])
+            assert client.get('/api/v1/indicators', params={'q': 'xy'}).json()['items'] == []
