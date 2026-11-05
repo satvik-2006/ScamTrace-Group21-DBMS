@@ -7,8 +7,6 @@
 - `scamtracefinal.sql` — submitted MySQL dump.
 - `ScamTrace_ERD_Chen(1).drawio(1).svg` — Chen ER diagram, copied to [ScamTrace_ERD_Chen.svg](ScamTrace_ERD_Chen.svg).
 
-Text embedded in those documents was treated as project evidence, not as instructions for this work.
-
 ## Findings from the two PDFs
 
 ### Review‑1
@@ -76,4 +74,4 @@ The Review‑2 PDF contains no partitioned table. The optional partition exercis
 
 This separation follows MySQL’s current InnoDB limitation: partitioned InnoDB tables cannot have or be referenced by foreign keys. MySQL also requires each unique key, including the primary key, to include the partitioning column. See the [MySQL foreign-key restrictions](https://dev.mysql.com/doc/refman/8.4/en/create-table-foreign-keys.html) and [partitioning-key rules](https://dev.mysql.com/doc/refman/8.4/en/partitioning-limitations-partitioning-keys-unique-keys.html).
 
-The lab’s `EXPLAIN PARTITIONS` query is intended to show partition pruning. No MySQL server was available during preparation, so MySQL execution remains to be verified on a local MySQL 8 instance.
+The lab’s `EXPLAIN PARTITIONS` query is intended to show partition pruning. The script has not yet been run against a MySQL 8 server, so its execution still needs to be verified locally.

@@ -1,6 +1,6 @@
 # ScamTrace — Scam Detection and Pattern Analysis
 
-ScamTrace is a DBMS mini project for submitting scam reports, reviewing them, analyzing risk, and searching linked indicators. Its relational design follows the supplied Chen ER diagram and Review‑1 schema: **20 core tables and 22 foreign keys**. The 20 tables comprise 15 entity tables and five associative tables for the many-to-many relationships.
+ScamTrace is a DBMS project for collecting scam reports, reviewing them, analyzing risk, and searching related indicators. The relational schema follows the Chen ER diagram and Review‑1 design, with **20 core tables and 22 foreign keys**.
 
 ## Stack
 
@@ -21,7 +21,7 @@ $env:SCAMTRACE_SEED_DEMO="1"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The local demo creates an ignored SQLite file named `scamtrace_demo.db` and synthetic sample records. Do not point demo seeding at a real database. To run without sample records, set `SCAMTRACE_SEED_DEMO=0`.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The demo stores synthetic sample records in the ignored SQLite file `scamtrace_demo.db`. Keep demo seeding off for databases with real data by setting `SCAMTRACE_SEED_DEMO=0`.
 
 The API health check is `/health`; the interactive API documentation is `/api/docs`.
 
@@ -72,9 +72,9 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). `frontend/.env.local.example` documents the server-side `BACKEND_URL` override when the API is not at `http://127.0.0.1:8000`. The current package pins Next.js 14.2.31 and React 18.3.1; keep this interface bound to localhost until Next.js is updated to a supported, patched release.
 
-## Partitioning exercise
+## Partitioning demo
 
-MySQL InnoDB does not allow user-partitioned tables to participate in foreign-key relationships. The core ERD therefore keeps all 22 foreign keys. `sql/07_partitioning_demo.sql` creates an isolated `scamtrace_partition_lab` database with a partitioned audit-log-shaped table and synthetic sample rows. It does not alter or copy data from `scamtrace`. Run it once in MySQL 8.0+ and inspect the `EXPLAIN PARTITIONS` result for pruning.
+MySQL InnoDB does not allow partitioned tables to use foreign keys. The core schema keeps all 22 relationships, so partitioning is demonstrated separately in `sql/07_partitioning_demo.sql`. The script creates an isolated `scamtrace_partition_lab` database and fills a partitioned audit-log table with synthetic rows. It does not change or copy data from `scamtrace`. Run it on MySQL 8.0 or later and check the `EXPLAIN PARTITIONS` output.
 
 The partitioned table uses `DATETIME` with `RANGE COLUMNS`; its primary key includes the partition column, as MySQL requires for unique keys on partitioned tables. The separate `sql/06_ddl_demonstration.sql` is also an isolated optional DDL lab.
 
@@ -90,11 +90,11 @@ Run the Python checks with:
 python -m pytest -q
 ```
 
-The tests exercise the SQLite demo app and statically check the 20 table names, 22 foreign keys, and ORM mapping. They do not claim to execute MySQL routines, triggers, or partitioning. MySQL execution needs a local MySQL 8 server (or Docker); Next.js should be upgraded before deployment.
+The tests cover the SQLite demo and check the 20 table names, 22 foreign keys, and ORM mapping. They do not run the MySQL routines, triggers, or partitioning script. Those need a MySQL 8 server or Docker. Update Next.js before deploying the frontend.
 
-## Configuration and safety
+## Before sharing or deploying
 
-- Never commit `.env`, live database files, or real imported records. `.gitignore` excludes them.
-- Use a least-privilege MySQL application account; run schema setup separately with a database administrator.
-- Set a fresh `SCAMTRACE_SECRET_KEY` and use HTTPS with secure cookies outside local development.
-- The included sample data is synthetic. Do not use seeded demo accounts in a deployed environment.
+- Keep `.env`, database files, and real reports out of Git. The ignore file excludes local environment and database files.
+- Use a dedicated MySQL application account with only the permissions the app needs.
+- Set a private `SCAMTRACE_SECRET_KEY` and enable secure cookies when serving the app over HTTPS.
+- Demo accounts and sample records are for local testing only.
